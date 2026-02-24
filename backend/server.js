@@ -17,7 +17,7 @@ if (!fs.existsSync("uploads")) {
   fs.mkdirSync("uploads");
 }
 
-// Multer Storage Setup
+// ---------------- MULTER CONFIG ----------------
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, "uploads/");
@@ -27,7 +27,6 @@ const storage = multer.diskStorage({
   },
 });
 
-// Only allow PDF files
 const fileFilter = (req, file, cb) => {
   if (file.mimetype === "application/pdf") {
     cb(null, true);
@@ -37,39 +36,29 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
+  storage,
+  fileFilter,
 });
 
-// Home Route
+// ---------------- HEALTH CHECK ROUTE ----------------
 app.get("/", (req, res) => {
-  res.send("AI Resume Backend Running 🚀");
+  res.json({ message: "AI Resume Backend API Running 🚀" });
 });
 
-// Simple Form UI
-app.get("/form", (req, res) => {
-  res.send(`
-    <h2>Resume Analyzer</h2>
-    <form action="/upload" method="POST" enctype="multipart/form-data">
-      <input type="file" name="resume" required />
-      <br/><br/>
-      <textarea name="jobDescription" rows="6" cols="50" placeholder="Paste Job Description here" required></textarea>
-      <br/><br/>
-      <button type="submit">Analyze Resume</button>
-    </form>
-  `);
-});
-
-// Upload + Resume Analysis
-app.post("/upload", upload.single("resume"), async (req, res) => {
+// ---------------- MAIN ANALYSIS API ----------------
+app.post("/analyze", upload.single("resume"), async (req, res) => {
   try {
-
     if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
+      return res.status(400).json({ error: "Resume file is required" });
+    }
+
+    const jobDescription = req.body.jobDescription || "";
+
+    if (!jobDescription.trim()) {
+      return res.status(400).json({ error: "Job description is required" });
     }
 
     const filePath = req.file.path;
-    const jobDescription = req.body.jobDescription || "";
 
     const dataBuffer = fs.readFileSync(filePath);
     const pdfData = await pdfParse(dataBuffer);
@@ -79,8 +68,8 @@ app.post("/upload", upload.single("resume"), async (req, res) => {
 
     // ---------------- LENGTH SCORE (30) ----------------
     const wordCount = resumeText.split(/\s+/).length;
-    let lengthScore = 0;
 
+    let lengthScore = 0;
     if (wordCount < 150) {
       lengthScore = 10;
     } else if (wordCount < 300) {
@@ -89,7 +78,7 @@ app.post("/upload", upload.single("resume"), async (req, res) => {
       lengthScore = 30;
     }
 
-    // ---------------- SKILL MATCH LOGIC ----------------
+    // ---------------- SKILL MATCH ----------------
     const skills = [
       "react",
       "node",
@@ -123,7 +112,6 @@ app.post("/upload", upload.single("resume"), async (req, res) => {
         ? 0
         : Math.round((matchedSkills.length / totalRequiredSkills) * 100);
 
-    // Skill score out of 50
     const skillScore = Math.round((matchPercentage / 100) * 50);
 
     // ---------------- SECTION SCORE (20) ----------------
@@ -134,40 +122,49 @@ app.post("/upload", upload.single("resume"), async (req, res) => {
     if (resumeText.includes("skills")) sectionScore += 5;
     if (resumeText.includes("objective") || resumeText.includes("summary")) sectionScore += 5;
 
-    // ---------------- FINAL TOTAL SCORE (100) ----------------
+    // ---------------- FINAL SCORE (100) ----------------
     const totalScore = skillScore + lengthScore + sectionScore;
 
-    // Delete uploaded file after processing
+    // Clean uploaded file
     fs.unlinkSync(filePath);
 
-    res.send(`
-      <h2>Resume Analysis Result</h2>
-
-      <h3>Overall Resume Score: ${totalScore}/100</h3>
-
-      <h3>Match Percentage: ${matchPercentage}%</h3>
-
-      <h3>Matched Skills ✅</h3>
-      <ul>
-        ${matchedSkills.map(skill => `<li style="color:green">${skill}</li>`).join("")}
-      </ul>
-
-      <h3>Missing Skills ❌</h3>
-      <ul>
-        ${missingSkills.map(skill => `<li style="color:red">${skill}</li>`).join("")}
-      </ul>
-
-      <br/>
-      <a href="/form">Analyze Another Resume</a>
-    `);
+    // ---------------- FINAL RESPONSE ----------------
+    res.json({
+      totalScore,
+      matchPercentage,
+      breakdown: {
+        skillScore,
+        lengthScore,
+        sectionScore
+      },
+      matchedSkills,
+      missingSkills
+    });
 
   } catch (error) {
     console.error(error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      error: "Something went wrong during resume analysis"
+    });
   }
 });
 
-// Start Server
+app.get("/form", (req, res) => {
+  res.send(`
+    <h2>AI Resume Analyzer</h2>
+    <form action="/analyze" method="POST" enctype="multipart/form-data">
+      <label>Upload Resume (PDF):</label><br/>
+      <input type="file" name="resume" required /><br/><br/>
+
+      <label>Job Description:</label><br/>
+      <textarea name="jobDescription" rows="6" cols="60" required></textarea><br/><br/>
+
+      <button type="submit">Analyze Resume</button>
+    </form>
+  `);
+});
+
+// ---------------- START SERVER ----------------
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
