@@ -1,105 +1,97 @@
-* {
+body {
   margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: "Poppins", sans-serif;
+  font-family: Arial, sans-serif;
 }
 
-/* Background with smooth infinite animation */
 .app {
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-
-  background: linear-gradient(-45deg, #667eea, #764ba2, #ff6a88, #ff9966);
+  background: linear-gradient(-45deg, #ff6ec4, #7873f5, #42e695, #ff9a9e);
   background-size: 400% 400%;
-  animation: gradientMove 12s ease infinite;
+  animation: gradient 8s ease infinite;
 }
 
-@keyframes gradientMove {
+@keyframes gradient {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
 
-/* Main Card */
 .card {
-  width: 420px;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(15px);
+  background: white;
   padding: 35px;
   border-radius: 20px;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
-
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  width: 450px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+  text-align: center;
 }
 
-/* Title */
 .card h1 {
-  text-align: center;
-  color: white;
-  font-size: 24px;
-  font-weight: 600;
+  margin-bottom: 25px;
 }
 
-/* Upload Button Styled */
 .file-label {
-  background: rgba(255, 255, 255, 0.25);
-  border: 2px dashed white;
+  display: block;
   padding: 15px;
-  border-radius: 12px;
-  text-align: center;
+  border: 2px dashed #7873f5;
+  margin-bottom: 20px;
   cursor: pointer;
-  color: white;
-  font-weight: 500;
-  transition: 0.3s;
+  border-radius: 12px;
+  font-weight: bold;
 }
 
-.file-label:hover {
-  background: rgba(255, 255, 255, 0.35);
-}
-
-.file-label input {
-  display: none;
-}
-
-/* Textarea */
 textarea {
   width: 100%;
   height: 120px;
+  margin-bottom: 20px;
   padding: 15px;
   border-radius: 12px;
-  border: none;
-  resize: none;
-  outline: none;
+  border: 1px solid #ccc;
   font-size: 14px;
-
-  background: rgba(255, 255, 255, 0.9);
-  transition: 0.3s;
+  resize: none;
 }
 
-textarea:focus {
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.6);
-}
-
-/* Button */
 button {
+  width: 100%;
   padding: 14px;
-  border-radius: 12px;
   border: none;
+  background: #7873f5;
+  color: white;
+  border-radius: 12px;
   font-size: 16px;
-  font-weight: 600;
   cursor: pointer;
-
-  background: white;
-  color: #764ba2;
   transition: 0.3s;
 }
 
 button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  background: #5a54d6;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.result {
+  margin-top: 25px;
+  text-align: left;
+}
+
+.result h2 {
+  margin-bottom: 10px;
+}
+
+.result h3 {
+  margin-top: 15px;
+}
+
+.result ul {
+  padding-left: 18px;
+}
+
+.error {
+  margin-top: 15px;
+  color: red;
 }

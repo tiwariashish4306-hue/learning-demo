@@ -1,38 +1,46 @@
+
 import { useState } from "react";
 import "./App.css";
 
 function App() {
-  const [jobDescription, setJobDescription] = useState("");
   const [file, setFile] = useState(null);
+  const [jobDescription, setJobDescription] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async () => {
     if (!file || !jobDescription) {
-      alert("Please upload resume and paste job description");
+      alert("Upload resume and paste job description");
       return;
     }
+
+    setLoading(true);
+    setError("");
+    setResult(null);
 
     const formData = new FormData();
     formData.append("resume", file);
     formData.append("jobDescription", jobDescription);
 
     try {
-      setLoading(true);
-
       const response = await fetch("http://localhost:5000/analyze", {
         method: "POST",
         body: formData,
       });
 
       const data = await response.json();
-      setResult(data);
 
-    } catch (error) {
-      console.error("Error:", error);
-    } finally {
-      setLoading(false);
+      if (!response.ok) {
+        throw new Error(data.error || "Something went wrong");
+      }
+
+      setResult(data);
+    } catch (err) {
+      setError(err.message);
     }
+
+    setLoading(false);
   };
 
   return (
@@ -40,32 +48,52 @@ function App() {
       <div className="card">
         <h1>AI Resume Analyzer</h1>
 
-        {/* Upload Resume */}
         <label className="file-label">
-          {file ? `Selected: ${file.name}` : "Click to Upload Resume"}
+          {file ? file.name : "Click to Upload Resume"}
           <input
             type="file"
             onChange={(e) => setFile(e.target.files[0])}
+            hidden
           />
         </label>
 
-        {/* Job Description */}
         <textarea
           placeholder="Paste Job Description..."
           value={jobDescription}
           onChange={(e) => setJobDescription(e.target.value)}
         />
 
-        {/* Analyze Button */}
-        <button onClick={handleSubmit}>
+        <button onClick={handleSubmit} disabled={loading}>
           {loading ? "Analyzing..." : "Analyze Resume"}
         </button>
 
-        {/* Result Section */}
+        {error && <p className="error">{error}</p>}
+
         {result && (
-          <div style={{ marginTop: "15px", color: "white" }}>
-            <h3>Match Score: {result.matchPercentage}%</h3>
-            <p>{result.summary}</p>
+          <div className="result">
+            <h2>Match Score: {result.matchScore}%</h2>
+            <p><strong>Reasoning:</strong> {result.reasoning}</p>
+
+            <h3>Strengths</h3>
+            <ul>
+              {result.strengths?.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ul>
+
+            <h3>Missing Skills</h3>
+            <ul>
+              {result.missingSkills?.map((m, i) => (
+                <li key={i}>{m}</li>
+              ))}
+            </ul>
+
+            <h3>Improvement Suggestions</h3>
+            <ul>
+              {result.improvementSuggestions?.map((i, idx) => (
+                <li key={idx}>{i}</li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

@@ -9,80 +9,97 @@ const Groq = require("groq-sdk");
 const app = express();
 const PORT = 5000;
 
-// 🔎 DEBUG: check key loaded
 console.log("GROQ KEY LOADED:", process.env.GROQ_API_KEY ? "YES" : "NO");
 
-// ✅ Groq Setup
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-// Middlewares
 app.use(cors());
 app.use(express.json());
 
-// File Upload (memory)
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Health check
 app.get("/", (req, res) => {
   res.send("Server running...");
 });
 
-// Analyze route
 app.post("/analyze", upload.single("resume"), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: "Resume file required" });
+      return res.status(400).json({ error: "Resume required" });
     }
 
     const jobDescription = req.body.jobDescription;
-
-    if (!jobDescription || !jobDescription.trim()) {
+    if (!jobDescription) {
       return res.status(400).json({ error: "Job description required" });
     }
 
-    // Parse PDF
     const pdfData = await pdfParse(req.file.buffer);
     const resumeText = pdfData.text;
 
-    // 🔥 AI Call
-    const response = await groq.chat.completions.create({
-   model: "llama-3.1-8b-instant",
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      temperature: 0.3,
       messages: [
         {
           role: "system",
-          content:
-            "You are a resume analyzer. Give a match percentage (just a number) and a short professional summary."
+          content: `
+You are an advanced ATS-level resume analyzer.
+
+Return ONLY valid JSON in this format:
+
+{
+  "matchScore": number,
+  "reasoning": "Detailed explanation",
+  "strengths": [],
+  "missingSkills": [],
+  "improvementSuggestions": []
+}
+          `,
         },
         {
           role: "user",
-          content: `Resume:\n${resumeText}\n\nJob Description:\n${jobDescription}`
-        }
+          content: `
+Resume:
+${resumeText}
+
+Job Description:
+${jobDescription}
+          `,
+        },
       ],
-      temperature: 0.3
     });
 
-    const aiText = response.choices[0].message.content;
+    const aiText = completion.choices[0].message.content;
 
-    // Temporary safe score extraction
-    const matchPercentage = 85;
+    // ✅ Safe JSON extraction
+    let parsed;
+    try {
+      const jsonStart = aiText.indexOf("{");
+      const jsonEnd = aiText.lastIndexOf("}");
+      const cleanJson = aiText.substring(jsonStart, jsonEnd + 1);
+      parsed = JSON.parse(cleanJson);
+    } catch (err) {
+      console.log("RAW AI RESPONSE:", aiText);
+      return res.status(500).json({
+        error: "AI returned invalid JSON",
+        raw: aiText,
+      });
+    }
 
-    res.json({
-      matchPercentage,
-      summary: aiText
-    });
+    // ✅ Success response
+    res.json(parsed);
 
   } catch (error) {
-    console.error("ANALYZE ERROR:", error.message);
+    console.error("ERROR:", error.message);
     res.status(500).json({
       error: "Internal server error",
-      details: error.message
+      details: error.message,
     });
   }
 });
 
-// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
